@@ -1,4 +1,4 @@
-# PoisonGraphRAG
+# PoisonGraphRAG (PGR)
 
 
 **Environment**
