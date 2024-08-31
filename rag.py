@@ -32,7 +32,7 @@ class GraphRAG(RAG):
     init_cmd  = 'python -m graphrag.index --root {root} --reporter print --init'
     index_cmd = 'python -m graphrag.index --root {root} --reporter print'
     query_cmd = 'python -m graphrag.query --root {root} --method local "{question}" --response_type "A word or phrase that contains the necessary answer, as simple as possible"'
-    eval_cmd = 'python -m graphrag.query --root {root} --method local "{question}" --config {config} --response_type "A word or phrase that contains the necessary answer, as simple as possible"'
+    eval_cmd = 'python -m graphrag.query --root {root} --method local "{question}" --config {config} --response_type "Single Sentence"'
     
     def __init__(self, config) -> None:
         super().__init__(config)

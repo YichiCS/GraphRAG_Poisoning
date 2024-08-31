@@ -153,6 +153,8 @@ class Select(WorkFlow):
 class Poison(WorkFlow):
     def __init__(self, config, logger) -> None:
         super().__init__(config, logger)
+    
+    # TODO: Attack this method to config.attacker
         
     def run(self, **kwargs):
         try:
@@ -252,7 +254,7 @@ class Poison(WorkFlow):
 class PreRAG(WorkFlow):
     def __init__(self, config, logger) -> None:
         super().__init__(config, logger)
-    # TODO: Check RAG
+    # TODO Save a file 
     def skip_check(self, root, config):
         if config.overwrite:
             return False, False
@@ -263,7 +265,7 @@ class PreRAG(WorkFlow):
                 return True, False
             path = sorted(Path(path).iterdir(), key=os.path.getmtime, reverse=True)[0]
             file_num = len(os.listdir(os.path.join(path, 'artifacts')))
-            if file_num == 23: # TODO ourput file check
+            if file_num > 20: # TODO ourput file check
                 return True, True
             else:
                 return True, False
@@ -285,39 +287,35 @@ class PreRAG(WorkFlow):
                 sub_rag_dir = os.path.join(config.rag_dir, f"document_{d_id}")
                 # TODO Skip
                 skip_0, skip_1 = self.skip_check(sub_rag_dir, config)
+                self.logger.info(f'[{self.__class__.__name__}]: GraphRAG.INDEX Document {d_id} Skip {skip_0}, {skip_1}')
                 if not skip_0:
                     os.makedirs(os.path.join(sub_rag_dir, 'input'), exist_ok=True)
             
                     with open(os.path.join(sub_rag_dir, 'input', 'clean.txt'), 'w') as file:
                         file.write(clean_dataset[d_id]["corpus"])
                         
-                    if config.attack == 'poisoned':
-                        for query in document['queries']:
-                            q_id = query['id']
-                            question = query['question']
-                            
-                            # TODO: Data Type Checking
-                            corpus = query['corpus'][:min(config.rag_corpus_num, len(query['corpus']))]
-                            
-                            p_corpus = '\n\n'.join([question + ' ' + _c for _c in corpus if isinstance(_c, str)])
-                            
-                            with open(os.path.join(sub_rag_dir, 'input', f'poisoned_{q_id}.txt'), 'w') as file:
-                                file.write(p_corpus)
-                    elif config.attack == 'none':
-                        pass
+                    for query in document['queries']:
+                        query_id = query['id']
+                        poisoned_corpus = config.attacker.perform_attack(query, document_id=d_id)
+                        if poisoned_corpus:
+                            with open(os.path.join(sub_rag_dir, 'input', f'poisoned_{query_id}.txt'), 'w') as file:
+                                file.write(poisoned_corpus)
                 
                 if not skip_1:
                     rag.init(root=sub_rag_dir, config=config.setting)
-                    rag_result.append({
-                        'id': d_id, 
-                        'title': clean_dataset[d_id]['title'], 
-                        'rag': True,
-                    })
                     
-                self.logger.info(f'[{self.__class__.__name__}]: Success GraphRAG.INDEX Document {d_id}')
+                    self.logger.info(f'[{self.__class__.__name__}]: Success GraphRAG.INDEX Document {d_id}')
+                
+                # TODO
+                skip_0, skip_1 = self.skip_check(sub_rag_dir, config)
+                rag_result.append({
+                    'id': d_id, 
+                    'title': clean_dataset[d_id]['title'], 
+                    'rag': skip_0 and skip_1,
+                })
                 save_json(rag_result, config.rag_path)
                 
-            return self.logger.info(f'[{self.__class__.__name__}]: Environment has been created in {config.select_path}')
+            return self.logger.info(f'[{self.__class__.__name__}]: Environment has been created in {config.rag_dir}')
         except:
             tb_info = traceback.format_exc()
             return self.logger.info(f'[{self.__class__.__name__}]: {tb_info}')
@@ -348,9 +346,12 @@ class Evaluate(WorkFlow):
             poisoned_dataset = load_json(config.poisoned_path)
             eval_result, eval_id, = self.resume(config.eval_path)
             # TODO: Skip
+            if config.reresponse:
+                eval_result = []
             for document in poisoned_dataset:
                 d_id = document['id']
-                if not rag_data[d_id]['rag'] or d_id in eval_id:
+                # TODO
+                if (not rag_data[d_id]['rag'] or d_id in eval_id) and not config.reresponse:
                     continue
                 sub_rag_dir = os.path.join(config.rag_dir, f"document_{d_id}")
                 for query in tqdm(document['queries'], ncols=80, desc=f'Document {d_id}'):
@@ -365,7 +366,7 @@ class Evaluate(WorkFlow):
                 save_json(eval_result, config.eval_path)
                 
             for idx, query in enumerate(tqdm(eval_result, ncols=80, desc=f'Checking Answers')):
-                if 'attack_result' in query.keys() and 'normal_result' in query.keys():
+                if 'attack_result' in query.keys() and 'normal_result' in query.keys() and not config.reeval:
                     continue
                 # TODO: PostgAnswerCheck
                 question = query['question']
@@ -407,6 +408,10 @@ class Evaluate(WorkFlow):
         return result, id
             
     def answer_check(self, question, response, answer, llm, config):
+        # TODO: get rid of . , ""
+        response = response.replace("'", "").replace("\"", "").replace(",", "").replace(".", "")
+        answer = answer.replace("'", "").replace("\"", "").replace(",", "").replace(".", "")
+        
         split = False
         _response = response.lower().split()
         for w in _response:

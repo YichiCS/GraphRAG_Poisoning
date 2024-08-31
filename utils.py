@@ -23,7 +23,7 @@ def get_config():
     
     parser.add_argument("--dataset", default='squad', type=str, choices=['squad', 'squad_v2'])
     parser.add_argument("--split", default='validation', type=str, choices=['validation'])
-    parser.add_argument("--attack", default='poisoned', type=str, choices=['poisoned', 'none'])
+    parser.add_argument("--attack", default='injected', type=str, choices=['injected', 'poisoned', 'none'])
     
     parser.add_argument("--data_dir", default='./.data', type=str)
     parser.add_argument("--result_dir", default='./.result', type=str)
@@ -51,16 +51,22 @@ def get_config():
     parser.add_argument("--max_attempts", default=20, type=int)
     parser.add_argument("--corpus_num", default=5, type=int)
     parser.add_argument("--corpus_len", default=30, type=int)
+    # Injected
+    parser.add_argument("--emb_model", default='nomic-embed-text', type=str)
+    
     # prerag
-    parser.add_argument("--overwrite", default=False, type=bool)
+    parser.add_argument("--overwrite", action='store_true')
     parser.add_argument("--rag_corpus_num", default=5, type=int)
     
     # Debug Option YICHI
     parser.add_argument("--normal", action='store_true')
+    parser.add_argument("--normal_eval", action='store_true')
     parser.add_argument("--mini", default=-1, type=int)
+    parser.add_argument("--reeval", action='store_true')
+    parser.add_argument("--reresponse", action='store_true')
     
     args = parser.parse_args()
-    if args.normal:
+    if args.normal or args.normal_eval:
         args.attack = 'none'
     if args.mini > 0:
         args.data_split = f"{args.dataset}_{args.split}_mini_{args.mini}"
