@@ -25,6 +25,6 @@ python main.py --mini 2 --normal    # Construct Clean RAG System, neccesary for 
 python main.py --mini 2             # Perform Attack(default, PoisonedRAG) and Evaluation
 ```
 
-*TODO:* Merge Clean Environment and Poisoned for acceleration
+*TODO:* Merge Clean Environment and Poisoned for acceleration  
 *TODO:* A More Clear File System  
 *TODO:* Normalization in Hacked GraphRAG
